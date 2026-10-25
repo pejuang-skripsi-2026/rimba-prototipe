@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RIMBA — Prototipe KTI</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <h1>RIMBA</h1>
+        <p class="subtitle">Ruang Interkoneksi Mikroklimat Berbasis Automata — Prototipe</p>
+      </div>
+      <div class="badge-simulasi" role="note">
+        DATA SIMULASI — bukan hasil pengukuran
+      </div>
+    </div>
+    <nav class="tab-nav" aria-label="Navigasi layar prototipe">
+      <button class="tab-btn active" type="button" data-screen="screen-1">1 · Peta &amp; Kandidat Lahan</button>
+      <button class="tab-btn" type="button" data-screen="screen-2">2 · Simulasi CA</button>
+      <button class="tab-btn" type="button" data-screen="screen-3">3 · Rekomendasi Spesies</button>
+      <button class="tab-btn" type="button" data-screen="screen-4">4 · Pelaporan Warga</button>
+      <button class="tab-btn" type="button" data-screen="screen-5">5 · Edukasi MIPA</button>
+    </nav>
+  </header>
+
+  <main class="app-main">
+    <!-- LAYAR 1 -->
+    <section id="screen-1" class="screen active" aria-labelledby="title-screen-1">
+      <h2 id="title-screen-1">Peta &amp; Kandidat Lahan</h2>
+      <p class="screen-note">Voronoi hanya membagi ruang berdasarkan kedekatan titik acuan. Sel Voronoi yang luas <strong>bukan</strong> otomatis lokasi terbaik. Tidak ada pengukuran polusi.</p>
+      <div class="map-toolbar">
+        <label class="toggle"><input type="checkbox" id="toggle-voronoi"> Tampilkan lapisan Voronoi</label>
+        <span class="toolbar-note">DATA SIMULASI — bukan hasil pengukuran</span>
+        <span class="toolbar-note" id="voronoi-note"></span>
+      </div>
+      <div class="map-layout">
+        <div class="map-wrap">
+
+        <div class="map-wrap">
+          <div class="map-search-overlay" style="flex-direction: column; align-items: stretch; width: 220px;">
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="map-search-input" placeholder="Cari lokasi..." style="width: 100%;">
+              <button type="button" id="btn-map-search" class="btn btn-primary btn-sm">Cari</button>
+            </div>
+            <button type="button" id="btn-generate-candidates" class="btn btn-warning btn-sm" style="margin-top: 6px; font-weight:bold;">
+              ✨ Simulasi Pindai Lahan
+            </button>
+          </div>
+
+          <div id="map" class="map-container" role="region" aria-label="Peta kandidat lahan"></div>
+          
+          <div class="map-location-label" id="map-location-label">
+            📍 Lokasi Awal: <strong>Kawasan Kampus, Bandung</strong> (Data Fiktif)
+          </div>
+
+          <!-- (biarkan kode SVG fallback di bawahnya) -->
+          <div id="map-fallback" class="map-container fallback" hidden>
+            <p class="fallback-label">Ilustrasi — bukan peta sebenarnya</p>
+            <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+              <rect width="400" height="300" fill="#f0f5ec"/>
+              <polygon points="0,0 200,0 200,150 0,150" fill="#d6e4cc" stroke="#8fa885"/>
+              <polygon points="200,0 400,0 400,150 200,150" fill="#c6dcc0" stroke="#8fa885"/>
+              <polygon points="0,150 200,150 200,300 0,300" fill="#c6dcc0" stroke="#8fa885"/>
+              <polygon points="200,150 400,150 400,300 200,300" fill="#d6e4cc" stroke="#8fa885"/>
+              <circle cx="100" cy="75" r="7" fill="#2f6b3a" stroke="#fff" stroke-width="2"/>
+              <circle cx="300" cy="75" r="7" fill="#2f6b3a" stroke="#fff" stroke-width="2"/>
+              <circle cx="200" cy="225" r="7" fill="#2f6b3a" stroke="#fff" stroke-width="2"/>
+            </svg>
+            <p class="fallback-reason"></p>
+          </div>
+        </div>
+        <aside class="candidate-list" aria-labelledby="cand-title">
+          <h3 id="cand-title">Kandidat Lahan</h3>
+          <p class="aside-note">Status: <strong>perlu verifikasi</strong>.</p>
+          <ul id="candidate-ul"></ul>
+        </aside>
+      </div>
+      <div id="detail-panel" class="detail-panel" hidden></div>
+    </section>
+
+      <!-- ================= LAYAR 2 ================= -->
+    <section id="screen-2" class="screen" aria-labelledby="title-screen-2">
+      <h2 id="title-screen-2">Simulasi Cellular Automata</h2>
+      <p class="screen-note">
+        Parameter transisi adalah <strong>asumsi matematis</strong>. Keluaran berupa <strong>skenario simulasi</strong>, bukan prediksi riil.
+      </p>
+
+      <div class="ca-layout">
+        <div class="ca-main">
+          <div class="ca-header-bar">
+            <div class="ca-controls">
+              <button type="button" id="ca-step" class="btn btn-secondary">+1 Bulan (Step)</button>
+              <button type="button" id="ca-run" class="btn btn-primary">Jalankan Otomatis</button>
+              <button type="button" id="ca-reset" class="btn btn-secondary">Reset</button>
+            </div>
+            <div class="ca-time-badge">
+              Waktu: <strong id="ca-time">0</strong> Bulan
+            </div>
+          </div>
+
+          <div class="ca-grid-wrap">
+            <div id="ca-grid" class="ca-grid" role="grid" aria-label="Grid CA 12x12"></div>
+          </div>
+
+          <div class="ca-stats">
+            <div class="coverage-bar">
+              <div class="coverage-fill" id="ca-coverage-fill" style="width: 0%;"></div>
+              <span class="coverage-text">Tutupan Tajuk: <strong id="ca-coverage">0%</strong></span>
+            </div>
+            
+            <p class="ca-narrative" id="ca-narrative">
+              Lahan kosong. Klik "Step" atau "Jalankan" untuk memulai simulasi.
+            </p>
+
+            <div class="ca-legend">
+              <span><span class="legend-item state-0"></span> Kosong</span>
+              <span><span class="legend-item state-1"></span> Bibit 🌱</span>
+              <span><span class="legend-item state-2"></span> Muda 🌿</span>
+              <span><span class="legend-item state-3"></span> Tajuk 🌳</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kolom Kanan: Parameter & Kondisi -->
+        <aside class="ca-sidebar">
+          <h3>Variabel Lingkungan (Asumsi)</h3>
+          
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label for="param-plant">Jenis Tanaman</label>
+            <select id="param-plant">
+              <option value="cepat">Pohon Cepat Tumbuh (misal: Trembesi)</option>
+              <option value="sedang" selected>Pohon Sedang (misal: Mahoni)</option>
+              <option value="lambat">Pohon Lambat Tumbuh (misal: Ulin)</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label for="param-air">Kondisi Udara (Simulasi)</label>
+            <select id="param-air">
+              <option value="baik" selected>Baik (Mendukung)</option>
+              <option value="sedang">Sedang (Cukup)</option>
+              <option value="buruk">Buruk (Polusi Tinggi)</option>
+            </select>
+            <p class="param-desc" style="color: #c47e00; margin-top: 6px;">
+              *Udara buruk akan memperlambat pertumbuhan tanaman.
+            </p>
+          </div>
+
+          <h3 style="margin-top: 24px;">Aturan Dasar (Bebas Diubah)</h3>
+          
+          <div class="param-group">
+            <label for="param-seed">Peluang bibit alami</label>
+            <div class="param-input">
+              <input type="range" id="param-seed" min="0" max="50" value="5">
+              <span id="val-seed">5%</span>
+            </div>
+          </div>
+          <div class="param-group">
+            <label for="param-grow1">Peluang bibit → muda</label>
+            <div class="param-input">
+              <input type="range" id="param-grow1" min="0" max="100" value="30">
+              <span id="val-grow1">30%</span>
+            </div>
+          </div>
+          <div class="param-group">
+            <label for="param-grow2">Peluang muda → tajuk</label>
+            <div class="param-input">
+              <input type="range" id="param-grow2" min="0" max="100" value="20">
+              <span id="val-grow2">20%</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- LAYAR 3 -->
+    <section id="screen-3" class="screen" aria-labelledby="title-screen-3">
+      <h2 id="title-screen-3">Rekomendasi Spesies</h2>
+      <p class="screen-note">Kandidat berbasis kriteria morfologi/lokasi. <strong>Bukan</strong> klaim serapan polutan. Wajib <strong>verifikasi ahli</strong>.</p>
+      <div class="species-layout">
+        <aside class="species-form">
+          <h3>Kriteria Lahan</h3>
+          <div class="form-group">
+            <label for="crit-width">Lebar Lahan</label>
+            <select id="crit-width">
+              <option value="sempit">Sempit (&lt; 2 meter)</option>
+              <option value="sedang" selected>Sedang (2 - 5 meter)</option>
+              <option value="luas">Luas (&gt; 5 meter)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="crit-exposure">Paparan Sinar</label>
+            <select id="crit-exposure">
+              <option value="penuh" selected>Penuh</option>
+              <option value="parsial">Parsial</option>
+              <option value="ternaungi">Ternaungi</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="crit-water">Kebutuhan Air</label>
+            <select id="crit-water">
+              <option value="rendah">Rendah</option>
+              <option value="sedang" selected>Sedang</option>
+              <option value="tinggi">Tinggi</option>
+            </select>
+          </div>
+          <button type="button" id="btn-sp-recommend" class="btn btn-primary" style="width: 100%;">Cari Kandidat</button>
+        </aside>
+        <div class="species-results" id="sp-results">
+          <div class="empty-state"><p>Pilih kriteria, lalu klik Cari Kandidat.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LAYAR 4 -->
+    <section id="screen-4" class="screen" aria-labelledby="title-screen-4">
+      <h2 id="title-screen-4">Pelaporan Warga</h2>
+      <p class="screen-note">Fitur verifikasi adalah <strong>simulasi front-end</strong>. Data tersimpan di browser Anda.</p>
+      <div class="report-layout">
+        <div class="report-form-wrap">
+          <h3>Buat Laporan Baru</h3>
+          <form id="report-form">
+            <div class="form-group">
+              <label for="rep-title">Judul Laporan</label>
+              <input type="text" id="rep-title" required placeholder="Contoh: Lahan kosong">
+            </div>
+            <div class="form-group">
+              <label for="rep-photo">Foto (Opsional)</label>
+              <input type="file" id="rep-photo" accept="image/*">
+              <img id="rep-photo-preview" class="photo-preview" hidden alt="Pratinjau">
+            </div>
+            <div class="form-group">
+              <label>Koordinat</label>
+              <div style="margin-bottom: 8px;">
+                <button type="button" id="btn-get-loc" class="btn btn-secondary btn-sm">Ambil Lokasi Saya</button>
+                <span id="loc-status" class="text-xs" style="color: var(--muted);"></span>
+              </div>
+              <div class="coord-inputs">
+                <input type="number" id="rep-lat" step="any" required placeholder="Lat">
+                <input type="number" id="rep-lng" step="any" required placeholder="Lng">
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="rep-notes">Catatan</label>
+              <textarea id="rep-notes" rows="3" required placeholder="Jelaskan kondisi..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Kirim Laporan</button>
+          </form>
+        </div>
+        <div class="report-admin-wrap" id="report-list"></div>
+      </div>
+    </section>
+
+    <!-- ================= LAYAR 5 ================= -->
+    <section id="screen-5" class="screen" aria-labelledby="title-screen-5">
+      <h2 id="title-screen-5">Edukasi MIPA</h2>
+      <p class="screen-note">
+        Penerapan konsep Matematika dan Komputasi dalam pemodelan lingkungan.
+      </p>
+
+      <div class="edu-cards">
+        <div class="edu-card">
+          <div class="edu-icon">📐</div>
+          <h3>Matematika Diskrit: Voronoi</h3>
+          <p>Diagram Voronoi membagi ruang menjadi beberapa wilayah berdasarkan jarak terdekat ke titik acuan. Dalam RIMBA, ini digunakan untuk memetakan area jangkauan (misalnya: titik mana yang paling dekat dengan lahan tertentu), <em>bukan</em> untuk mendeteksi polusi.</p>
+          <div class="edu-tag">Konsep: Geometri Bidang & Jarak Terdekat</div>
+        </div>
+
+        <div class="edu-card">
+          <div class="edu-icon">🔄</div>
+          <h3>Pemodelan: Cellular Automata</h3>
+          <p>Cellular Automata (CA) adalah model matematika berbasis kisi (grid). Status suatu kotak berubah berdasarkan probabilitas dan interaksi dengan kotak tetangganya. Ini mensimulasikan bagaimana aturan lokal sederhana dapat menghasilkan pola global (seperti pertumbuhan vegetasi).</p>
+          <div class="edu-tag">Konsep: Probabilitas & Matriks Transisi</div>
+        </div>
+
+        <div class="edu-card">
+          <div class="edu-icon">🌱</div>
+          <h3>Literasi Lingkungan (Edu-Tech)</h3>
+          <p>Melalui simulasi ini, siswa diajak memahami bahwa pertumbuhan tanaman dipengaruhi oleh variabel (jenis pohon, cuaca, polusi). Siswa dapat mengubah parameter untuk melihat dampak skenario yang berbeda.</p>
+          <div class="edu-tag">Konsep: Variabel Bebas & Terikat</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>Prototipe RIMBA — mockup front-end untuk KTI. Seluruh data contoh berlabel <strong>DATA SIMULASI — bukan hasil pengukuran</strong>. Belum ada validasi ahli atau uji lapangan.</p>
+  </footer>
+
+  <!-- CDN -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6"></script>
+
+  <!-- Modul JS (Urutan wajib diperhatikan) -->
+  <script src="js/data.js"></script>
+  <script src="js/voronoi.js"></script>
+  <script src="js/screen1.js"></script>
+  <script src="js/ca.js"></script>
+  <script src="js/screen2.js"></script>
+  <script src="js/species.js"></script>
+  <script src="js/screen3.js"></script>
+  <script src="js/reports.js"></script>
+  <script src="js/screen4.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
