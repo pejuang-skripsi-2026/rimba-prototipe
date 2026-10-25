@@ -1,5 +1,5 @@
 /* =========================================================
-   RIMBA — screen1.js (Versi Final + Interkoneksi Spesies)
+   RIMBA — screen1.js (Versi Final + Interkoneksi + Detail Acak)
    ========================================================= */
 
 (function () {
@@ -154,14 +154,18 @@
           var rLat = center.lat + (Math.random() - 0.5) * 0.01;
           var rLng = center.lng + (Math.random() - 0.5) * 0.01;
           newPoints.push({ lat: rLat, lng: rLng });
+          
+          var pointName = 'Titik Simulasi #' + (i + 1);
           var marker = window.L.marker([rLat, rLng], {
             icon: window.L.divIcon({ className: 'candidate-marker', html: '<div class="candidate-marker-inner" style="background:#fff4e0;border-color:#7a4b00;color:#7a4b00;">?</div>', iconSize: [26, 26], iconAnchor: [13, 13] })
           }).addTo(map);
+          
           marker.bindPopup(
-            '<div class="popup-title">Titik Simulasi #' + (i + 1) + '</div>' +
+            '<div class="popup-title">' + pointName + '</div>' +
             '<div class="popup-status">Status: perlu verifikasi</div>' +
-            '<button type="button" class="popup-btn" onclick="window.RIMBA_PINDAH_KE_LAPORAN(' + rLat + ', ' + rLng + ')">Laporkan Lahan Ini</button>'
+            '<button type="button" class="popup-btn" onclick="window.RIMBA_SHOW_TEMP_DETAIL(\'' + pointName + '\', ' + rLat + ', ' + rLng + ')">Lihat detail</button>'
           );
+          
           state.generatedMarkers.push(marker);
         }
 
@@ -186,7 +190,7 @@
       });
     }
 
-    // --- 8. Popup Detail & Interkoneksi ---
+    // --- 8. Popup Detail & Interkoneksi (Kandidat Asli) ---
     map.on('popupopen', function (e) {
       var btn = e.popup.getElement().querySelector('.popup-btn');
       if (!btn || btn.hasAttribute('onclick')) return;
@@ -205,7 +209,7 @@
     renderCandidateList();
   }
 
-  // --- FUNGSI JEMBATAN ---
+  // --- FUNGSI JEMBATAN (Layar 1 ke Layar lain) ---
   window.RIMBA_PINDAH_KE_LAPORAN = function(lat, lng) {
     var tabBtn = document.querySelector('[data-screen="screen-4"]');
     if (tabBtn) tabBtn.click();
@@ -231,7 +235,36 @@
     }, 100);
   };
 
-  // --- FUNGSI RENDER ---
+  // --- FUNGSI DETAIL UNTUK TITIK ACAK ---
+  window.RIMBA_SHOW_TEMP_DETAIL = function(name, lat, lng) {
+    var panel = document.getElementById('detail-panel');
+    if (!panel) return;
+
+    panel.innerHTML =
+      '<div class="detail-header"><h3>' + esc(name) + '</h3>' +
+        '<button type="button" class="detail-close" aria-label="Tutup">\u00d7</button></div>' +
+      '<p class="detail-status">Status: <strong>perlu verifikasi</strong></p>' +
+      '<dl class="detail-dl">' +
+        '<dt>Koordinat</dt><dd>' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</dd>' +
+        '<dt>Luas (perkiraan)</dt><dd>Belum diukur (Simulasi)</dd>' +
+        '<dt>Lebar lahan</dt><dd>Sedang (asumsi sistem)</dd>' +
+        '<dt>Paparan</dt><dd>Penuh (asumsi sistem)</dd>' +
+        '<dt>Kebutuhan air</dt><dd>Sedang (asumsi sistem)</dd>' +
+        '<dt>Catatan</dt><dd>Titik ini dihasilkan dari pemindaian probabilistik. Harap verifikasi visual pada citra satelit.</dd>' +
+      '</dl>' +
+      '<div style="margin-top: 16px; text-align: right; display: flex; gap: 8px; justify-content: flex-end;">' +
+        '<button type="button" class="btn btn-secondary" id="btn-temp-report">Laporkan Lahan Ini ➔</button>' +
+        '<button type="button" class="btn btn-primary" id="btn-temp-species">Cari Spesies ➔</button>' +
+      '</div>' +
+      '<p class="detail-disclaimer">DATA SIMULASI — bukan hasil pengukuran.</p>';
+
+    panel.hidden = false;
+    panel.querySelector('.detail-close').addEventListener('click', function() { panel.hidden = true; });
+    panel.querySelector('#btn-temp-report').addEventListener('click', function() { window.RIMBA_PINDAH_KE_LAPORAN(lat, lng); });
+    panel.querySelector('#btn-temp-species').addEventListener('click', function() { window.RIMBA_SYNC_SPECIES('sedang', 'penuh', 'sedang'); });
+  };
+
+  // --- FUNGSI RENDER KANDIDAT ASLI ---
   function renderCandidateList() {
     var listEl = document.getElementById('candidate-ul');
     var data = window.RIMBA_DATA;
@@ -269,7 +302,6 @@
     var panel = document.getElementById('detail-panel');
     if (!panel) return;
 
-    // HTML Tombol Interkoneksi Baru
     panel.innerHTML =
       '<div class="detail-header"><h3>' + esc(cand.name) + '</h3>' +
         '<button type="button" class="detail-close" aria-label="Tutup">\u00d7</button></div>' +
@@ -289,14 +321,10 @@
 
     panel.hidden = false;
     
-    // Event listener untuk tombol interkoneksi (lebih aman daripada inline onclick)
     var btnSync = panel.querySelector('#btn-detail-sync');
     if (btnSync) {
-      btnSync.addEventListener('click', function() {
-        window.RIMBA_SYNC_SPECIES(cand.width, cand.exposure, cand.waterNeed);
-      });
+      btnSync.addEventListener('click', function() { window.RIMBA_SYNC_SPECIES(cand.width, cand.exposure, cand.waterNeed); });
     }
-
     panel.querySelector('.detail-close').addEventListener('click', function () { panel.hidden = true; });
   }
 
